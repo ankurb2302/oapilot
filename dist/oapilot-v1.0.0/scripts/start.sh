@@ -114,8 +114,8 @@ export PYTHONUNBUFFERED=1
 export PYTHONIOENCODING=utf-8
 export GEVENT_SUPPORT=1
 
-# Start backend server
-nohup python3 -O app/main.py > ../logs/backend.log 2>&1 &
+# Start backend server using startup script that handles Python path
+nohup python3 -O start_backend.py > ../logs/backend.log 2>&1 &
 BACKEND_PID=$!
 
 cd ..

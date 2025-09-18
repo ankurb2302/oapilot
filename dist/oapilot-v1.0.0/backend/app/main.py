@@ -10,6 +10,9 @@ import logging
 import sys
 from pathlib import Path
 
+# Add parent directory to Python path for module imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from app.core.config import settings
 from app.core.database import init_db, engine
 from app.core.llm_manager import get_llm_manager
