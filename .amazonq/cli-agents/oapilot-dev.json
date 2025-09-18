@@ -1,0 +1,68 @@
+{
+  "name": "oapilot-dev",
+  "description": "OAPilot Development Agent with MCP server integration",
+  "prompt": "You are an offline AI assistant with access to various MCP servers for enhanced capabilities",
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/workspace"],
+      "timeout": 30000,
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    "git": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git"],
+      "timeout": 30000
+    },
+    "fetch": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"],
+      "timeout": 10000
+    },
+    "sqlite": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "./storage/database/oapilot.db"],
+      "timeout": 30000
+    },
+    "remote-api": {
+      "type": "http",
+      "url": "http://localhost:8081/mcp",
+      "headers": {
+        "Authorization": "Bearer ${MCP_API_TOKEN}"
+      }
+    }
+  },
+  "tools": [
+    "@filesystem",
+    "@git",
+    "@fetch/fetch_url",
+    "@sqlite/query",
+    "@remote-api"
+  ],
+  "allowedTools": [
+    "@filesystem/read_file",
+    "@filesystem/write_file",
+    "@filesystem/list_directory",
+    "@git/git_status",
+    "@git/git_diff",
+    "@git/git_log",
+    "@fetch/fetch_url",
+    "@sqlite/query",
+    "@remote-api/execute"
+  ],
+  "toolAliases": {
+    "read": "@filesystem/read_file",
+    "write": "@filesystem/write_file",
+    "ls": "@filesystem/list_directory",
+    "status": "@git/git_status"
+  },
+  "settings": {
+    "maxConnections": 5,
+    "initTimeout": 60000,
+    "requestTimeout": 30000,
+    "retryAttempts": 3,
+    "enableAutoDiscovery": false
+  }
+}
