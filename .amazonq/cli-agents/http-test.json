@@ -1,0 +1,24 @@
+{
+  "name": "oapilot-http-test",
+  "description": "OAPilot HTTP Test Configuration",
+  "mcpServers": {
+    "test-http-server": {
+      "type": "http",
+      "url": "http://localhost:3002",
+      "timeout": 10000
+    }
+  },
+  "tools": [
+    "@test-http-server"
+  ],
+  "allowedTools": [
+    "@test-http-server/echo",
+    "@test-http-server/get_time"
+  ],
+  "settings": {
+    "maxConnections": 1,
+    "initTimeout": 10000,
+    "requestTimeout": 5000,
+    "retryAttempts": 2
+  }
+}

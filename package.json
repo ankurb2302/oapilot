@@ -1,0 +1,27 @@
+{
+  "name": "oapilot",
+  "version": "1.0.0",
+  "description": "A completely offline, locally-running AI assistant that uses **AWS Q's MCP configuration format** without requiring AWS Q to be installed. OAPilot acts as a standalone replacement for AWS Q while maintaining full compatibility with existing MCP server configurations.",
+  "main": "test-mcp-server.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ankurb2302/oapilot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ankurb2302/oapilot/issues"
+  },
+  "homepage": "https://github.com/ankurb2302/oapilot#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.1"
+  }
+}

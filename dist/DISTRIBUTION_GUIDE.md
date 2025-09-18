@@ -1,8 +1,8 @@
 # OAPilot Distribution Guide
 
 ## Package Details
-- **File**: oapilot-v1.0.0-linux.tar.gz
-- **Size**: 104K
+- **File**: oapilot-v1.2.1-linux.tar.gz
+- **Size**: 2.5M
 - **Target**: Ubuntu/WSL2 systems
 - **Requirements**: 8GB RAM, 15GB disk space
 
@@ -11,13 +11,13 @@
 ### Option 1: Direct File Sharing
 Share the package file directly:
 ```
-oapilot-v1.0.0-linux.tar.gz
+oapilot-v1.2.1-linux.tar.gz
 ```
 
 ### Option 2: Web Download
 Host on a web server and provide download link:
 ```bash
-wget https://your-server.com/oapilot/oapilot-v1.0.0-linux.tar.gz
+wget https://your-server.com/oapilot/oapilot-v1.2.1-linux.tar.gz
 ```
 
 ### Option 3: Git Repository
@@ -28,8 +28,8 @@ Upload to a repository and provide clone instructions.
 ### Quick Install (Recommended)
 ```bash
 # Download and extract
-tar -xzf oapilot-v1.0.0-linux.tar.gz
-cd oapilot-v1.0.0
+tar -xzf oapilot-v1.2.1-linux.tar.gz
+cd oapilot-v1.2.1
 
 # Install and start
 ./install.sh
@@ -39,8 +39,8 @@ cd oapilot-v1.0.0
 ### Manual Install
 ```bash
 # Extract
-tar -xzf oapilot-v1.0.0-linux.tar.gz
-cd oapilot-v1.0.0
+tar -xzf oapilot-v1.2.1-linux.tar.gz
+cd oapilot-v1.2.1
 
 # Install dependencies
 ./install.sh
