@@ -21,7 +21,7 @@ class Artifact(Base):
     file_path = Column(String(500))
     mime_type = Column(String(100))
     size_bytes = Column(Integer)
-    metadata = Column(JSON)
+    custom_metadata = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships

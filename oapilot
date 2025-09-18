@@ -1,0 +1,348 @@
+#!/bin/bash
+
+# OAPilot Global Command
+# This script can be symlinked to /usr/local/bin/oapilot for global access
+
+# Color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+print_logo() {
+    echo -e "${CYAN}"
+    cat << 'EOF'
+   ___          ____  _ __      __
+  / _ \  ____ _ / __ \(_) /___  / /_
+ / // / / __ `// /_/ // // _ \/ __/
+/____/  \__,_/ \____//_//_//_/\__/
+
+EOF
+    echo -e "${NC}"
+    echo -e "${BLUE}Offline AI Pilot - Standalone AWS Q Compatible Assistant${NC}"
+    echo ""
+}
+
+print_help() {
+    print_logo
+    echo "Usage: oapilot [COMMAND] [OPTIONS]"
+    echo ""
+    echo "Commands:"
+    echo "  start         Start OAPilot services (default if no command)"
+    echo "  stop          Stop all OAPilot services"
+    echo "  restart       Restart OAPilot services"
+    echo "  status        Show service status"
+    echo "  monitor       System monitoring dashboard"
+    echo "  logs          Show recent logs"
+    echo "  setup         Run initial setup"
+    echo "  update        Update OAPilot to latest version"
+    echo "  quick-start   Quick setup and start with model download"
+    echo "  health        Check system health"
+    echo "  config        Show configuration"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help    Show this help message"
+    echo "  -v, --version Show version information"
+    echo "  --install-dir Set installation directory (default: ~/oapilot)"
+    echo ""
+    echo "Examples:"
+    echo "  oapilot                 # Start OAPilot"
+    echo "  oapilot quick-start     # Setup and start with model download"
+    echo "  oapilot monitor         # Show monitoring dashboard"
+    echo "  oapilot logs            # Show recent logs"
+    echo ""
+    echo "Access Points:"
+    echo "  🌐 Web Interface:     http://localhost:8080"
+    echo "  📊 API Documentation: http://localhost:8080/docs"
+    echo "  ❤️  Health Check:     http://localhost:8080/health"
+    echo ""
+}
+
+get_install_dir() {
+    # Check if OAPILOT_HOME is set
+    if [ ! -z "$OAPILOT_HOME" ]; then
+        echo "$OAPILOT_HOME"
+        return
+    fi
+
+    # Check if --install-dir is provided
+    for arg in "$@"; do
+        if [[ $arg == --install-dir=* ]]; then
+            echo "${arg#*=}"
+            return
+        fi
+    done
+
+    # Default location
+    echo "$HOME/oapilot"
+}
+
+ensure_in_directory() {
+    local install_dir=$(get_install_dir "$@")
+
+    if [ ! -d "$install_dir" ]; then
+        echo -e "${RED}Error: OAPilot installation not found at $install_dir${NC}"
+        echo ""
+        echo "To install OAPilot:"
+        echo "  curl -fsSL https://raw.githubusercontent.com/ankurb2302/oapilot/main/install-oapilot.sh | bash"
+        echo ""
+        echo "Or specify installation directory:"
+        echo "  oapilot --install-dir=/path/to/oapilot [command]"
+        exit 1
+    fi
+
+    if [ ! -f "$install_dir/backend/app/main.py" ]; then
+        echo -e "${RED}Error: Invalid OAPilot installation at $install_dir${NC}"
+        echo "Missing required files. Please reinstall OAPilot."
+        exit 1
+    fi
+
+    cd "$install_dir"
+}
+
+show_version() {
+    echo "OAPilot v1.0.0"
+    echo "Offline AI Pilot with AWS Q MCP Integration"
+    echo ""
+    echo "Components:"
+    echo "  - Backend API Server"
+    echo "  - AWS Q MCP Adapter"
+    echo "  - Local LLM Integration (Ollama)"
+    echo "  - Web Interface (Optional)"
+}
+
+show_status() {
+    ensure_in_directory "$@"
+
+    echo -e "${BLUE}OAPilot Service Status${NC}"
+    echo ""
+
+    # Check backend
+    if curl -s http://localhost:8080/health > /dev/null 2>&1; then
+        echo -e "✅ Backend API:    ${GREEN}Running${NC} (http://localhost:8080)"
+    else
+        echo -e "❌ Backend API:    ${RED}Not Running${NC}"
+    fi
+
+    # Check Ollama
+    if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+        echo -e "✅ Ollama LLM:     ${GREEN}Running${NC} (http://localhost:11434)"
+    else
+        echo -e "❌ Ollama LLM:     ${RED}Not Running${NC}"
+    fi
+
+    # Check MCP servers
+    if curl -s http://localhost:8080/api/v1/awsq-mcp/servers > /dev/null 2>&1; then
+        mcp_count=$(curl -s http://localhost:8080/api/v1/awsq-mcp/servers | jq -r '.count // 0' 2>/dev/null || echo "0")
+        echo -e "🔗 MCP Servers:    ${GREEN}$mcp_count active${NC}"
+    else
+        echo -e "🔗 MCP Servers:    ${YELLOW}Unknown${NC}"
+    fi
+
+    echo ""
+}
+
+show_logs() {
+    ensure_in_directory "$@"
+
+    echo -e "${BLUE}Recent OAPilot Logs${NC}"
+    echo ""
+
+    if [ -f "logs/backend.log" ]; then
+        echo -e "${CYAN}Backend Log (last 20 lines):${NC}"
+        tail -20 logs/backend.log
+        echo ""
+    fi
+
+    if [ -f "logs/ollama.log" ]; then
+        echo -e "${CYAN}Ollama Log (last 10 lines):${NC}"
+        tail -10 logs/ollama.log
+        echo ""
+    fi
+}
+
+check_health() {
+    ensure_in_directory "$@"
+
+    echo -e "${BLUE}OAPilot Health Check${NC}"
+    echo ""
+
+    # Backend health
+    if curl -s http://localhost:8080/health > /dev/null 2>&1; then
+        health_data=$(curl -s http://localhost:8080/health)
+        echo -e "✅ Backend:        ${GREEN}Healthy${NC}"
+        echo "   Status: $(echo "$health_data" | jq -r '.status // "unknown"')"
+        echo "   Service: $(echo "$health_data" | jq -r '.service // "unknown"')"
+        echo "   Version: $(echo "$health_data" | jq -r '.version // "unknown"')"
+    else
+        echo -e "❌ Backend:        ${RED}Unhealthy${NC}"
+    fi
+
+    # Ollama health
+    if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+        echo -e "✅ Ollama:         ${GREEN}Healthy${NC}"
+        model_count=$(curl -s http://localhost:11434/api/tags | jq '.models | length' 2>/dev/null || echo "unknown")
+        echo "   Models: $model_count available"
+    else
+        echo -e "❌ Ollama:         ${RED}Unhealthy${NC}"
+    fi
+
+    # System resources
+    memory_usage=$(free | awk 'NR==2{printf "%.0f", $3*100/$2}')
+    disk_usage=$(df . | awk 'NR==2{print $5}' | sed 's/%//')
+
+    echo ""
+    echo "System Resources:"
+    echo "   Memory: ${memory_usage}%"
+    echo "   Disk: ${disk_usage}%"
+
+    echo ""
+}
+
+show_config() {
+    ensure_in_directory "$@"
+
+    echo -e "${BLUE}OAPilot Configuration${NC}"
+    echo ""
+    echo "Installation Directory: $(pwd)"
+
+    if [ -f "backend/.env" ]; then
+        echo ""
+        echo "Environment Configuration:"
+        grep -v '^#' backend/.env | grep -v '^$' | while read line; do
+            echo "   $line"
+        done
+    fi
+
+    if [ -d ".amazonq/cli-agents" ]; then
+        echo ""
+        echo "AWS Q MCP Configurations:"
+        for config in .amazonq/cli-agents/*.json; do
+            if [ -f "$config" ]; then
+                config_name=$(basename "$config" .json)
+                server_count=$(jq '.mcpServers | length' "$config" 2>/dev/null || echo "unknown")
+                echo "   $config_name: $server_count servers"
+            fi
+        done
+    fi
+
+    echo ""
+}
+
+update_oapilot() {
+    ensure_in_directory "$@"
+
+    echo -e "${BLUE}Updating OAPilot...${NC}"
+    echo ""
+
+    # Stop services first
+    echo "Stopping services..."
+    ./scripts/stop.sh
+
+    # Pull latest changes
+    if [ -d ".git" ]; then
+        echo "Pulling latest changes..."
+        git pull origin main
+
+        # Update backend dependencies
+        if [ -d "backend/venv" ]; then
+            echo "Updating Python dependencies..."
+            cd backend
+            source venv/bin/activate
+            pip install --upgrade -r requirements.txt
+            cd ..
+        fi
+
+        # Update npm dependencies
+        if [ -f "package.json" ]; then
+            echo "Updating Node.js dependencies..."
+            npm update
+        fi
+
+        echo -e "${GREEN}Update completed!${NC}"
+        echo ""
+        echo "To restart OAPilot:"
+        echo "  oapilot start"
+    else
+        echo -e "${YELLOW}Not a git repository. Manual update required.${NC}"
+        echo "Download latest version from: https://github.com/ankurb2302/oapilot"
+    fi
+}
+
+# Main command dispatcher
+main() {
+    local command="${1:-start}"
+
+    case "$command" in
+        "-h"|"--help"|"help")
+            print_help
+            ;;
+        "-v"|"--version"|"version")
+            show_version
+            ;;
+        "start"|"")
+            ensure_in_directory "$@"
+            ./scripts/start.sh
+            ;;
+        "stop")
+            ensure_in_directory "$@"
+            ./scripts/stop.sh
+            ;;
+        "restart")
+            ensure_in_directory "$@"
+            ./scripts/stop.sh
+            sleep 2
+            ./scripts/start.sh
+            ;;
+        "quick-start")
+            ensure_in_directory "$@"
+            ./quick-start.sh
+            ;;
+        "setup")
+            ensure_in_directory "$@"
+            ./scripts/setup.sh
+            ;;
+        "status")
+            show_status "$@"
+            ;;
+        "monitor")
+            ensure_in_directory "$@"
+            ./scripts/monitor.sh "${2:-all}"
+            ;;
+        "logs")
+            show_logs "$@"
+            ;;
+        "health")
+            check_health "$@"
+            ;;
+        "config")
+            show_config "$@"
+            ;;
+        "update")
+            update_oapilot "$@"
+            ;;
+        *)
+            echo -e "${RED}Unknown command: $command${NC}"
+            echo ""
+            print_help
+            exit 1
+            ;;
+    esac
+}
+
+# Check dependencies
+if ! command -v curl >/dev/null 2>&1; then
+    echo -e "${RED}Error: curl is required but not installed${NC}"
+    exit 1
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+    echo -e "${YELLOW}Warning: jq not found. Some features may not work properly${NC}"
+    echo "Install with: sudo apt install jq"
+    echo ""
+fi
+
+# Run main function
+main "$@"

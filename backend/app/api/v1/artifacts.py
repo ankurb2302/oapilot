@@ -61,7 +61,7 @@ async def create_artifact(
             file_path=file_info["path"],
             mime_type=_get_mime_type(artifact_create.type.value),
             size_bytes=file_info["size_bytes"],
-            metadata=artifact_create.metadata or {}
+            custom_metadata=artifact_create.custom_metadata or {}
         )
         
         db.add(artifact)
@@ -78,7 +78,7 @@ async def create_artifact(
             file_path=artifact.file_path,
             mime_type=artifact.mime_type,
             size_bytes=artifact.size_bytes,
-            metadata=artifact.metadata,
+            custom_metadata=artifact.custom_metadata,
             created_at=artifact.created_at
         )
         
@@ -118,7 +118,7 @@ async def list_artifacts(
             file_path=artifact.file_path,
             mime_type=artifact.mime_type,
             size_bytes=artifact.size_bytes,
-            metadata=artifact.metadata,
+            custom_metadata=artifact.custom_metadata,
             created_at=artifact.created_at
         )
         for artifact in artifacts
@@ -149,7 +149,7 @@ async def get_artifact(
         file_path=artifact.file_path,
         mime_type=artifact.mime_type,
         size_bytes=artifact.size_bytes,
-        metadata=artifact.metadata,
+        custom_metadata=artifact.custom_metadata,
         created_at=artifact.created_at
     )
 
@@ -238,7 +238,7 @@ async def update_artifact(
         artifact.name = artifact_update.name
         artifact.description = artifact_update.description
         artifact.size_bytes = file_info["size_bytes"]
-        artifact.metadata = artifact_update.metadata or {}
+        artifact.custom_metadata = artifact_update.custom_metadata or {}
         
         db.commit()
         db.refresh(artifact)
@@ -253,7 +253,7 @@ async def update_artifact(
             file_path=artifact.file_path,
             mime_type=artifact.mime_type,
             size_bytes=artifact.size_bytes,
-            metadata=artifact.metadata,
+            custom_metadata=artifact.custom_metadata,
             created_at=artifact.created_at
         )
         

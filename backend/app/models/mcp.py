@@ -1,6 +1,6 @@
 """MCP Server model"""
 
-from sqlalchemy import Column, Integer, String, DateTime, JSON, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, JSON, Boolean, Text
 from datetime import datetime
 
 from app.core.database import Base
@@ -20,7 +20,7 @@ class MCPServer(Base):
     capabilities = Column(JSON)  # Available resources, tools, prompts
     last_health_check = Column(DateTime)
     error_message = Column(Text)
-    metadata = Column(JSON)
+    custom_metadata = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

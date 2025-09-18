@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
 
         # Load MCP configurations from standard locations
         # OAPilot uses the same config format as AWS Q for compatibility
-        loaded_servers = await mcp_manager.load_awsq_configurations(Path.cwd())
+        loaded_servers = await mcp_manager.load_awsq_configurations(Path.cwd().parent)
 
         if loaded_servers:
             logger.info(f"MCP manager initialized with {len(loaded_servers)} servers from config files")

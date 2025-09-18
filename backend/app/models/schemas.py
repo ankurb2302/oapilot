@@ -88,7 +88,7 @@ class ArtifactCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     content: str
     description: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    custom_metadata: Optional[Dict[str, Any]] = None
 
 
 class ArtifactResponse(BaseModel):
@@ -101,7 +101,7 @@ class ArtifactResponse(BaseModel):
     file_path: Optional[str]
     mime_type: Optional[str]
     size_bytes: Optional[int]
-    metadata: Optional[Dict[str, Any]]
+    custom_metadata: Optional[Dict[str, Any]]
     created_at: datetime
     
     class Config:
@@ -144,6 +144,36 @@ class HealthResponse(BaseModel):
     timestamp: datetime
     resources: Dict[str, Any]
     services: Dict[str, str]
+
+
+# MCP Server Schemas
+class MCPServerResponse(BaseModel):
+    server_id: str
+    name: str
+    endpoint: str
+    status: str
+    is_active: bool
+    capabilities: Optional[Dict[str, Any]]
+    transport_type: str
+    last_health_check: Optional[datetime]
+    error_message: Optional[str]
+    custom_metadata: Optional[Dict[str, Any]]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class MCPResourceResponse(BaseModel):
+    uri: str
+    name: str
+    description: Optional[str]
+    mime_type: Optional[str]
+    content: Optional[str]
+
+    class Config:
+        from_attributes = True
 
 
 class ResourceUsage(BaseModel):

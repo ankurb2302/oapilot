@@ -18,7 +18,7 @@ class ChatSession(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     model_used = Column(String(100))
     total_tokens = Column(Integer, default=0)
-    metadata = Column(JSON)
+    custom_metadata = Column(JSON)
     
     # Relationships
     messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
