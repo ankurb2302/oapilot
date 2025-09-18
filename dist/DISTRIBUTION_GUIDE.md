@@ -2,7 +2,7 @@
 
 ## Package Details
 - **File**: oapilot-v1.0.0-linux.tar.gz
-- **Size**: 56K
+- **Size**: 104K
 - **Target**: Ubuntu/WSL2 systems
 - **Requirements**: 8GB RAM, 15GB disk space
 

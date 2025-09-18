@@ -302,7 +302,17 @@ EOF
     if [ -d "frontend" ]; then
         print_status "Setting up frontend..."
         cd frontend
+
+        # Install dependencies
         npm install
+
+        # Explicitly install terser if missing (common issue with Vite)
+        if ! npm list terser > /dev/null 2>&1; then
+            print_status "Installing terser for Vite build optimization..."
+            npm install --save-dev terser
+        fi
+
+        # Build frontend
         npm run build
         cd "$INSTALL_DIR"
         print_success "Frontend built"
