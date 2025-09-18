@@ -171,6 +171,14 @@ class STDIOBridge:
                 env=env
             )
 
+            # Wait a moment to see if the process starts successfully
+            await asyncio.sleep(0.1)
+            if self.process.returncode is not None:
+                # Process exited immediately - read stderr for error
+                stderr_data = await self.process.stderr.read()
+                error_msg = stderr_data.decode() if stderr_data else "Process exited immediately"
+                raise Exception(f"MCP server failed to start: {error_msg}")
+
             # Find an available port for the bridge
             import socket
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -204,17 +212,55 @@ class STDIOBridge:
             data = await request.json()
 
             # Send to process stdin
-            self.process.stdin.write(json.dumps(data).encode() + b'\n')
+            request_data = json.dumps(data).encode() + b'\n'
+            self.process.stdin.write(request_data)
             await self.process.stdin.drain()
 
-            # Read response from stdout
-            response_line = await asyncio.wait_for(
-                self.process.stdout.readline(),
-                timeout=self.config.timeout / 1000.0  # Convert to seconds
-            )
+            # Read response from stdout with better handling
+            response_data = ""
+            timeout_seconds = self.config.timeout / 1000.0
 
-            response = json.loads(response_line.decode())
-            return web.json_response(response)
+            # Try to read a complete JSON response
+            while True:
+                try:
+                    response_line = await asyncio.wait_for(
+                        self.process.stdout.readline(),
+                        timeout=timeout_seconds
+                    )
+
+                    if not response_line:
+                        break
+
+                    line_text = response_line.decode().strip()
+                    if not line_text:
+                        continue
+
+                    response_data += line_text
+
+                    # Try to parse as JSON - if successful, we have a complete response
+                    try:
+                        response = json.loads(response_data)
+                        return web.json_response(response)
+                    except json.JSONDecodeError:
+                        # Not complete JSON yet, continue reading
+                        continue
+
+                except asyncio.TimeoutError:
+                    break
+
+            # If we get here, we didn't get valid JSON
+            if response_data:
+                logger.error(f"Invalid JSON from MCP server {self.config.name}: {response_data}")
+                return web.json_response(
+                    {"error": {"code": -32700, "message": f"Parse error: {response_data}"}},
+                    status=500
+                )
+            else:
+                logger.error(f"No response from MCP server {self.config.name}")
+                return web.json_response(
+                    {"error": {"code": -32000, "message": "No response from server"}},
+                    status=504
+                )
 
         except asyncio.TimeoutError:
             return web.json_response(
@@ -231,11 +277,26 @@ class STDIOBridge:
     async def stop(self):
         """Stop the STDIO process and bridge"""
         if self.process:
-            self.process.terminate()
-            await self.process.wait()
+            try:
+                # Try graceful termination first
+                self.process.terminate()
+                try:
+                    await asyncio.wait_for(self.process.wait(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    # Force kill if termination takes too long
+                    self.process.kill()
+                    await self.process.wait()
+            except ProcessLookupError:
+                # Process already terminated
+                pass
+            except Exception as e:
+                logger.warning(f"Error stopping STDIO bridge process: {e}")
 
         if self.bridge_server:
-            await self.bridge_server.cleanup()
+            try:
+                await self.bridge_server.cleanup()
+            except Exception as e:
+                logger.warning(f"Error cleaning up bridge server: {e}")
 
 
 class AWSQMCPManager(MCPManager):
