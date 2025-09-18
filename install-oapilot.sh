@@ -534,15 +534,41 @@ show_config() {
     echo ""
     echo "Installation Directory: $(pwd)"
 
+    # Check for AWS Q MCP configurations
+    config_found=false
+
+    # Global configurations
+    if [ -d "$HOME/.aws/amazonq/cli-agents" ]; then
+        echo ""
+        echo "Global AWS Q MCP Configurations:"
+        for config in "$HOME/.aws/amazonq/cli-agents"/*.json; do
+            if [ -f "$config" ]; then
+                config_name=$(basename "$config" .json)
+                echo "   $config_name"
+                config_found=true
+            fi
+        done
+    fi
+
+    # Project configurations
     if [ -d ".amazonq/cli-agents" ]; then
         echo ""
-        echo "AWS Q MCP Configurations:"
+        echo "Project AWS Q MCP Configurations:"
         for config in .amazonq/cli-agents/*.json; do
             if [ -f "$config" ]; then
                 config_name=$(basename "$config" .json)
                 echo "   $config_name"
+                config_found=true
             fi
         done
+    fi
+
+    if [ "$config_found" = false ]; then
+        echo ""
+        echo "No AWS Q MCP configurations found."
+        echo "Place configurations in:"
+        echo "  - Global: $HOME/.aws/amazonq/cli-agents/*.json"
+        echo "  - Project: .amazonq/cli-agents/*.json"
     fi
 
     echo ""
