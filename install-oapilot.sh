@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-GITHUB_REPO="your-username/oapilot"  # Update with your GitHub repo
+GITHUB_REPO="ankurb2302/oapilot"
 INSTALL_DIR="$HOME/oapilot"
 RELEASE_URL="https://github.com/$GITHUB_REPO/releases/latest/download"
 
