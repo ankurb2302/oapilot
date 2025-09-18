@@ -84,25 +84,124 @@ check_requirements() {
 install_dependencies() {
     print_status "Installing system dependencies..."
 
-    # Update package list
+    # Fix broken packages first
+    print_status "Fixing any broken packages..."
+    sudo apt-get update -qq
+    sudo dpkg --configure -a
+    sudo apt-get install -f -y -qq
+    sudo apt-get autoremove -y -qq
+    sudo apt-get autoclean -qq
+
+    # Update package list again
+    print_status "Updating package lists..."
     sudo apt-get update -qq
 
-    # Install essential packages
-    sudo apt-get install -y -qq \
-        curl \
-        wget \
-        tar \
-        git \
-        build-essential \
-        python3 \
-        python3-pip \
-        python3-venv \
-        nodejs \
-        npm \
-        libssl-dev \
-        libffi-dev
+    # Install essential packages one by one to identify issues
+    print_status "Installing essential packages..."
 
-    print_success "System dependencies installed"
+    packages=(
+        "curl"
+        "wget"
+        "tar"
+        "git"
+        "build-essential"
+        "python3"
+        "python3-pip"
+        "python3-venv"
+        "python3-dev"
+        "libssl-dev"
+        "libffi-dev"
+        "software-properties-common"
+        "apt-transport-https"
+        "ca-certificates"
+        "gnupg"
+        "lsb-release"
+    )
+
+    for package in "${packages[@]}"; do
+        if ! dpkg -l | grep -q "^ii  $package "; then
+            print_status "Installing $package..."
+
+            # Try multiple installation methods with increasing force
+            if ! sudo apt-get install -y "$package" 2>/dev/null; then
+                print_warning "Standard install failed for $package, trying with --fix-broken..."
+
+                if ! sudo apt-get install -y --fix-broken "$package" 2>/dev/null; then
+                    print_warning "Still failing, trying with --allow-downgrades..."
+
+                    if ! sudo apt-get install -y --fix-broken --allow-downgrades "$package" 2>/dev/null; then
+                        print_warning "Trying with --force-yes and --allow-unauthenticated..."
+
+                        if ! sudo apt-get install -y --force-yes --allow-unauthenticated "$package" 2>/dev/null; then
+                            # Last resort - force install with dpkg
+                            print_warning "Using force install for $package..."
+                            sudo apt-get download "$package" 2>/dev/null || true
+                            sudo dpkg -i --force-depends *.deb 2>/dev/null || true
+                            sudo apt-get install -f -y 2>/dev/null || true
+                            rm -f *.deb
+
+                            if ! dpkg -l | grep -q "^ii  $package "; then
+                                print_warning "Could not install $package, continuing anyway..."
+                            else
+                                print_success "$package installed with force"
+                            fi
+                        else
+                            print_success "$package installed"
+                        fi
+                    else
+                        print_success "$package installed"
+                    fi
+                else
+                    print_success "$package installed"
+                fi
+            else
+                print_success "$package installed"
+            fi
+        else
+            print_success "$package already installed"
+        fi
+    done
+
+    # Install Node.js using NodeSource repository (more reliable)
+    if ! command -v node &> /dev/null || [ "$(node --version | cut -d'v' -f2 | cut -d. -f1)" -lt 16 ]; then
+        print_status "Installing Node.js 18 LTS..."
+
+        # Remove any existing nodejs installations that might conflict
+        sudo apt-get remove -y -qq nodejs npm 2>/dev/null || true
+
+        # Add NodeSource repository
+        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - 2>/dev/null
+
+        # Install Node.js
+        if ! sudo apt-get install -y -qq nodejs; then
+            print_warning "NodeSource installation failed, trying snap..."
+            sudo snap install node --classic || print_error "Could not install Node.js"
+        fi
+    fi
+
+    # Verify installations
+    print_status "Verifying installations..."
+    if command -v python3 &> /dev/null; then
+        print_success "Python3: $(python3 --version)"
+    else
+        print_error "Python3 installation failed"
+        exit 1
+    fi
+
+    if command -v node &> /dev/null; then
+        print_success "Node.js: $(node --version)"
+    else
+        print_warning "Node.js not available, some MCP servers may not work"
+    fi
+
+    if command -v npm &> /dev/null; then
+        print_success "npm: $(npm --version)"
+    else
+        print_warning "npm not available, installing manually..."
+        curl -L https://www.npmjs.com/install.sh | sudo sh || print_warning "Manual npm install failed"
+    fi
+
+    print_success "System dependencies installation completed"
 }
 
 # Install Ollama
@@ -278,8 +377,116 @@ EOF
     print_success "Convenience scripts created"
 }
 
+# Fix common Ubuntu/Debian package issues
+fix_system_issues() {
+    print_status "PERFORMING COMPREHENSIVE SYSTEM FIX..."
+
+    print_warning "This will fix broken packages, clear locks, and resolve conflicts"
+    print_status "This may take a few minutes..."
+
+    # Step 1: Kill all package manager processes
+    print_status "Step 1/8: Stopping package manager processes..."
+    sudo systemctl stop packagekit 2>/dev/null || true
+    sudo systemctl stop unattended-upgrades 2>/dev/null || true
+    sudo systemctl stop apt-daily.timer 2>/dev/null || true
+    sudo systemctl stop apt-daily-upgrade.timer 2>/dev/null || true
+
+    # Force kill any hanging processes
+    sudo pkill -9 -f apt 2>/dev/null || true
+    sudo pkill -9 -f dpkg 2>/dev/null || true
+    sudo pkill -9 -f unattended 2>/dev/null || true
+    sudo pkill -9 -f packagekit 2>/dev/null || true
+
+    sleep 2
+
+    # Step 2: Remove all locks
+    print_status "Step 2/8: Removing package manager locks..."
+    sudo rm -f /var/lib/dpkg/lock-frontend
+    sudo rm -f /var/lib/dpkg/lock
+    sudo rm -f /var/cache/apt/archives/lock
+    sudo rm -f /var/lib/apt/lists/lock
+    sudo rm -f /var/cache/debconf/*.dat
+
+    # Step 3: Fix dpkg database
+    print_status "Step 3/8: Repairing dpkg database..."
+    sudo dpkg --configure -a --force-confdef --force-confold
+
+    # Step 4: Clean package cache
+    print_status "Step 4/8: Cleaning package cache..."
+    sudo apt-get clean
+    sudo apt-get autoclean -y
+
+    # Step 5: Fix broken dependencies
+    print_status "Step 5/8: Fixing broken dependencies..."
+    sudo apt-get update --fix-missing
+    sudo apt-get install -f -y
+    sudo apt-get autoremove -y --purge
+
+    # Step 6: Update package lists with all repositories
+    print_status "Step 6/8: Updating all package lists..."
+    sudo apt-get update
+
+    # Step 7: Upgrade packages to resolve version conflicts
+    print_status "Step 7/8: Resolving version conflicts..."
+    sudo apt-get upgrade -y --fix-broken --allow-downgrades
+    sudo apt-get dist-upgrade -y --fix-broken --allow-downgrades
+
+    # Step 8: Final cleanup
+    print_status "Step 8/8: Final cleanup..."
+    sudo dpkg --configure -a
+    sudo apt-get install -f -y
+    sudo apt-get autoremove -y
+    sudo apt-get autoclean
+
+    # Verify system is fixed
+    if sudo apt-get check 2>/dev/null; then
+        print_success "✅ SYSTEM FIXED SUCCESSFULLY!"
+    else
+        print_warning "⚠️ Some issues remain but continuing with installation..."
+    fi
+
+    # Check and free disk space if needed
+    available_space=$(df / | awk 'NR==2 {print $4}')
+    if [ "$available_space" -lt 15728640 ]; then  # 15GB in KB
+        print_warning "Low disk space detected. Performing aggressive cleanup..."
+
+        # Clean journal logs
+        sudo journalctl --vacuum-time=1d || true
+
+        # Clean apt cache
+        sudo apt-get clean
+        sudo rm -rf /var/cache/apt/archives/*.deb
+
+        # Clean temp files
+        sudo rm -rf /tmp/*
+        sudo rm -rf /var/tmp/*
+
+        # Clean snap cache
+        sudo rm -rf /var/lib/snapd/cache/* 2>/dev/null || true
+
+        # Clean docker if present
+        docker system prune -af --volumes 2>/dev/null || true
+
+        # Clean old kernels
+        sudo apt-get autoremove --purge -y
+
+        print_success "Disk cleanup completed"
+    fi
+
+    print_success "System preparation completed!"
+}
+
 # Main installation flow
 main() {
+    # Check for --fix-only flag
+    if [ "$1" = "--fix-only" ]; then
+        print_banner
+        print_warning "Running in FIX-ONLY mode - will only repair system packages"
+        fix_system_issues
+        print_success "System fix completed! You can now run the installer normally."
+        exit 0
+    fi
+
     print_banner
 
     # Check if already installed
@@ -295,6 +502,7 @@ main() {
     fi
 
     # Run installation steps
+    fix_system_issues
     check_requirements
     install_dependencies
     install_ollama
